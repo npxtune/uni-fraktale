@@ -6,14 +6,15 @@ const float STARTING_ZOOM = 0.75f;
 
 int OldWidht = 0, OldHeight = 0;
 int OldX = 0, OldY = 0;
+int KochIt = 1;
 
 int main(void) {
     // Initialization
     //--------------------------------------------------------------------------------------
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(800, 450, "Mandelbrot");
+    InitWindow(800, 450, "Fraktale");
 
-    // Load Mandelbrot set shader
+    // Load shader
     const Shader shader = LoadShader(0, TextFormat("../shader.glsl", 330));
 
     // Create a RenderTexture2D to be used for render to texture
@@ -25,21 +26,21 @@ int main(void) {
     // Get variable (uniform) locations on the shader to connect with the program
     const int zoomLoc = GetShaderLocation(shader, "zoom");
     const int offsetLoc = GetShaderLocation(shader, "offset");
+    const int fractalTypeLoc = GetShaderLocation(shader, "fractalType");
+    const int kochLoc = GetShaderLocation(shader, "recursionCount");
 
     // Upload the shader uniform values!
     SetShaderValue(shader, zoomLoc, &zoom, SHADER_UNIFORM_FLOAT);
     SetShaderValue(shader, offsetLoc, offset, SHADER_UNIFORM_VEC2);
 
-    int incrementSpeed = 2; // Multiplier of speed to change c value
     bool showControls = true; // Show controls
+    int fractalType = 1; // Default fractal type (1: Mandelbrot, 2: Julia, 3: Koch)
 
     SetTargetFPS(60); // Set our "game" to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
 
     // Main game loop
-    // Detect window close button or ESC key
     while (!WindowShouldClose()) {
-
         // Window events
         if (IsWindowResized()) {
             target.texture.width = GetScreenWidth();
@@ -68,7 +69,6 @@ int main(void) {
         }
 
         // Update
-        //----------------------------------------------------------------------------------
         if (IsKeyPressed(KEY_R)) {
             zoom = STARTING_ZOOM;
             offset[0] = -0.5f;
@@ -77,11 +77,16 @@ int main(void) {
             SetShaderValue(shader, offsetLoc, offset, SHADER_UNIFORM_VEC2);
         }
 
-        if (IsKeyPressed(KEY_SPACE)) incrementSpeed = 0; // Pause animation (c change)
         if (IsKeyPressed(KEY_F1)) showControls = !showControls; // Toggle whether or not to show controls
+        if (IsKeyPressed(KEY_ONE)) fractalType = 1; // Mandelbrot
+        if (IsKeyPressed(KEY_TWO)) fractalType = 2; // Julia set
+        if (IsKeyPressed(KEY_THREE)) fractalType = 3; // Koch curve
 
-        if (IsKeyPressed(KEY_RIGHT)) incrementSpeed++;
-        else if (IsKeyPressed(KEY_LEFT)) incrementSpeed--;
+        SetShaderValue(shader, fractalTypeLoc, &fractalType, SHADER_UNIFORM_INT);
+
+        if (IsKeyPressed(KEY_RIGHT)) KochIt++;
+        else if (IsKeyPressed(KEY_LEFT)) KochIt--;
+        SetShaderValue(shader, kochLoc, &KochIt, SHADER_UNIFORM_INT);
 
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
             zoom *= IsMouseButtonDown(MOUSE_BUTTON_LEFT) ? ZOOM_SPEED : 1.0f / ZOOM_SPEED;
@@ -98,9 +103,7 @@ int main(void) {
             SetShaderValue(shader, offsetLoc, offset, SHADER_UNIFORM_VEC2);
         }
 
-        //----------------------------------------------------------------------------------
         // Draw
-        //----------------------------------------------------------------------------------
         BeginTextureMode(target); // Enable drawing to texture
         ClearBackground(BLACK); // Clear the render texture
         DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), BLACK);
@@ -113,14 +116,14 @@ int main(void) {
         EndShaderMode();
 
         if (!showControls) {
-            DrawText("Press Mouse buttons right/left to zoom in/out and move", 10, 15, 10, RAYWHITE);
-            DrawText("Press KEY_F1 to toggle these controls", 10, 30, 10, RAYWHITE);
-            DrawText("Press KEYS [1 - 6] to change point of interest", 10, 45, 10, RAYWHITE);
-            DrawText("Press KEY_R to recenter the camera", 10, 90, 10, RAYWHITE);
+            DrawText("Drücken Sie die rechte/linke Maustaste zum Vergrößern/Verkleinern und Bewegen", 10, 15, 10, RAYWHITE);
+            DrawText("Drücken Sie die TASTE F1, um diese Hinweise zu verstecken/zeigen", 10, 30, 10, RAYWHITE);
+            DrawText("Drücken Sie die TASTEN [1 - 3], um zwischen den Fraktalen zu wechseln", 10, 45, 10, RAYWHITE);
+            DrawText("Drücken Sie die TASTEN [- ; +], um die Iterationen der Koch-Kurve zu ändern", 10, 45, 10, RAYWHITE);
+            DrawText("Drücken Sie die TASTE R, um die Kamera zurückzusetzen", 10, 90, 10, RAYWHITE);
         }
-        // TODO show zoom level via DrawText
+        if (fractalType == 3) DrawText(TextFormat("Iteration: %d", KochIt), 100, 100, 20, RAYWHITE);
         EndDrawing();
-        //----------------------------------------------------------------------------------
     }
 
     UnloadShader(shader); // Unload shader
